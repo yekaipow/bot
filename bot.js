@@ -13,30 +13,34 @@ const loadedModules = new Map();
 /**
  * 动态加载单个命令模块（ESM 正确写法）
  */
+/**
+ * 动态加载单个命令模块
+ */
 async function loadCommand(commandName) {
-  const filePath = path.join(commandsDir, `${commandName}.js`);
+  let filePath = path.join(commandsDir, `${commandName}.js`);
+  let fileUrl = `file://${filePath}`;
 
   try {
     // 卸载旧模块
     if (loadedModules.has(commandName)) {
-      const old = loadedModules.get(commandName);
+      let old = loadedModules.get(commandName);
       old.unload?.();
       loadedModules.delete(commandName);
     }
 
-    // ESM 动态 import（必须使用 file://）
-    const fileUrl = pathToFileURL(filePath).href + `?t=${Date.now()}`;
+    // 使用动态 import 加载 ES 模块
     const module = await import(fileUrl);
-
-    const init = module.default;
+    
+    // 检查默认导出
+    let init = module.default || module;
+    
     if (typeof init !== "function") {
       throw new Error(`Module ${commandName} does not export a function`);
     }
 
-    const result = init(bot) || {};
+    let result = init(bot) || {};
     loadedModules.set(commandName, result);
 
-    console.log(`✅ Loaded command: ${commandName}`);
     return result.meta;
   } catch (err) {
     console.error(`❌ Failed to load command "${commandName}":`, err);

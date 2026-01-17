@@ -1,104 +1,108 @@
-import { Telegraf } from 'telegraf';
-import fs from 'fs';
-import path from 'path';
+import { Telegraf } from "telegraf";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath, pathToFileURL } from "url";
 
-let bot = null;
-let currentModule = null;
-let modulePath = './commands/ping.js'; // 你的模块路径
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// 创建新的 bot 实例
-function createBot(token) {
-    const bot = new Telegraf(token);
+const bot = new Telegraf(process.env.BOT_TOKEN);
+const commandsDir = path.join(__dirname, "commands");
+const loadedModules = new Map();
+
+/**
+ * 动态加载单个命令模块（ESM 正确写法）
+ */
+/**
+ * 动态加载单个命令模块
+ */
+async function loadCommand(commandName) {
+  let filePath = path.join(commandsDir, `${commandName}.js`);
+  let fileUrl = `file://${filePath}`;
+
+  try {
+    // 卸载旧模块
+    if (loadedModules.has(commandName)) {
+      let old = loadedModules.get(commandName);
+      old.unload?.();
+      loadedModules.delete(commandName);
+    }
+
+    // 使用动态 import 加载 ES 模块
+    const module = await import(fileUrl);
     
-    // 全局错误处理
-    bot.catch((err, ctx) => {
-        console.error('全局错误:', err);
-        if (ctx) {
-            ctx.reply('发生错误，请重试').catch(() => {});
-        }
-    });
+    // 检查默认导出
+    let init = module.default || module;
     
-    return bot;
+    if (typeof init !== "function") {
+      throw new Error(`Module ${commandName} does not export a function`);
+    }
+
+    let result = init(bot) || {};
+    loadedModules.set(commandName, result);
+
+    return result.meta;
+  } catch (err) {
+    console.error(`❌ Failed to load command "${commandName}":`, err);
+    throw err;
+  }
 }
 
-// 加载/重载模块
-async function loadModule() {
+/**
+ * 扫描 commands 目录并加载所有命令
+ */
+async function loadAllCommands() {
+  const files = fs.readdirSync(commandsDir).filter(f => f.endsWith(".js"));
+  for (const file of files) {
+    const name = file.replace(".js", "");
+    await loadCommand(name);
+  }
+}
+
+/**
+ * 热重载：监听整个 commands 目录
+ */
+function enableHotReload() {
+  if (process.env.NODE_ENV === "production") return;
+
+  fs.watch(commandsDir, async (event, filename) => {
+    if (!filename || !filename.endsWith(".js")) return;
+
+    const commandName = filename.replace(".js", "");
+    console.log(`♻️ File changed: ${filename}`);
+
     try {
-        console.log('正在加载模块...');
-        
-        // 删除模块缓存
-        const resolvedPath = require.resolve(modulePath);
-        delete require.cache[resolvedPath];
-        
-        // 如果是 ES 模块，使用动态导入
-        const module = await import(`${modulePath}?update=${Date.now()}`);
-        
-        // 卸载旧模块
-        if (currentModule && currentModule.unload) {
-            currentModule.unload();
-            console.log('已卸载旧模块');
-        }
-        
-        // 加载新模块
-        currentModule = module.default(bot);
-        console.log('模块加载完成，版本:', currentModule.meta?.version);
-        
+      await loadCommand(commandName);
+      console.log(`🔄 Reloaded: ${commandName}`);
     } catch (err) {
-        console.error('模块加载失败:', err);
+      console.error(`❌ Reload failed for ${commandName}`, err);
     }
+  });
 }
 
-// 初始化
-async function init() {
-    const BOT_TOKEN = process.env.BOT_TOKEN;
-    
-    if (!BOT_TOKEN) {
-        console.error('请设置 BOT_TOKEN 环境变量');
-        process.exit(1);
-    }
-    
-    // 创建新 bot 实例
-    bot = createBot(BOT_TOKEN);
-    
-    // 添加重载指令
-    bot.command('reload', async (ctx) => {
-        if (ctx.from.id.toString() === "7563798903") { // 仅管理员可用
-            await ctx.reply('正在重载模块...');
-            await loadModule();
-            await ctx.reply('模块重载完成！');
-        }
-    });
-    
-    // 初始加载模块
-    await loadModule();
-    
-    // 启动机器人
-    await bot.launch();
-    console.log('机器人已启动');
-    
-    // 监听文件变化（开发环境）
-    if (process.env.NODE_ENV === 'development') {
-        fs.watch(path.dirname(modulePath), (eventType, filename) => {
-            if (filename === path.basename(modulePath)) {
-                console.log('检测到文件变化，正在重载...');
-                loadModule();
-            }
-        });
-    }
-}
+/**
+ * /reload 命令：重载所有命令
+ */
+bot.command("reload", async ctx => {
+  try {
+    await loadAllCommands();
+    ctx.reply("🔄 All commands reloaded!");
+  } catch (err) {
+    ctx.reply(`❌ Reload failed: ${err.message}`);
+  }
+});
+
+/**
+ * 启动 bot
+ */
+(async () => {
+  await loadAllCommands();
+  enableHotReload();
+
+  console.log("🤖 Bot started with elegant dynamic reloading!");
+  bot.launch({ polling: true });
+})();
 
 // 优雅关闭
-process.once('SIGINT', () => {
-    console.log('正在关闭机器人...');
-    if (bot) bot.stop('SIGINT');
-    process.exit();
-});
-
-process.once('SIGTERM', () => {
-    console.log('正在关闭机器人...');
-    if (bot) bot.stop('SIGTERM');
-    process.exit();
-});
-
-// 启动
-init();
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));

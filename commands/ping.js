@@ -1,4 +1,3 @@
-//2.0
 import { Markup } from 'telegraf';
 import { exec } from 'child_process';
 
@@ -63,7 +62,7 @@ export default function (bot) {
 
     let CONFIG = {
         COMPANY_INFO: {
-            name: "上海总部3",
+            name: "上海总部2",
             address: "上海市浦东新区张江科技园1号楼",
             coordinates: { lat: 31.2304, lon: 121.4737 },
             contact: "400-123-4567",
@@ -119,7 +118,7 @@ export default function (bot) {
                     await ctx.sed_de(`执行错误: ${error.message}`,false,false);
                     return true;
                 }
-                await ctx.sed_de(stdout || "执行完成2",false,false);
+                await ctx.sed_de(stdout || "执行完成",false,false);
                 if (stderr) console.error(stderr);
             });
             return true;
@@ -210,30 +209,13 @@ export default function (bot) {
         ctx.reply("⚠️ 服务暂时不可用，请稍后再试").catch(() => {});
     });
 
-    // 在你的模块末尾
-return {
-    unload() {
-        // 1. 移除所有命令
-        this.meta.commands.forEach(cmd => {
-            bot.command(cmd, () => {}); // 用空函数覆盖
-        });
-        
-        // 2. 移除所有 action
-        const actions = ['help', 'contact_info', 'send_location'];
-        actions.forEach(action => {
-            bot.action(action, () => {});
-        });
-        
-        // 3. 移除事件监听器
-        bot.off('message'); // 移除所有 message 监听器
-        bot.off('text');    // 移除所有 text 监听器
-        
-        // 4. 其他清理工作
-        console.log('模块已卸载');
-    },
-    meta: {
-        version,
-        commands: ['ping', 'id', 'start', 'help', 'reload'] // 添加 reload
-    }
-};
+    return {
+        unload() {
+            this.meta.commands.forEach(cmd => bot.command(cmd, () => {}));
+        },
+        meta: {
+            version,
+            commands: ['ping', 'id', 'start', 'help']
+        }
+    };
 }

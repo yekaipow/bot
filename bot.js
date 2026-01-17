@@ -10,6 +10,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const commandsDir = path.join(__dirname, 'commands');
 const loadedModules = new Map();
 
+
 /**
  * 动态加载单个命令模块
  */

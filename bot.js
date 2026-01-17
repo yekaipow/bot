@@ -5,8 +5,8 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const bot = new Telegraf(process.env.BOT_TOKEN);
 
-const bot = new Telegraf("7821710149:AAG9u-QglSvsFpq5ww1P5j5ncNNxJJhFQ1w");
 const commandsDir = path.join(__dirname, 'commands');
 const loadedModules = new Map();
 

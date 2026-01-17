@@ -106,7 +106,7 @@ export default function (bot) {
            exec(`sh -c "${keyword}"`, async (error, stdout, stderr) => {
                 if (error) {
                     await ctx.sed_de(`执行错误: ${error.message}`,false,false);
-                    return;
+                    return true;
                 }
                 await ctx.sed_de(stdout || "执行完成",false,false);
                 if (stderr) console.error(stderr);

@@ -1,9 +1,8 @@
 FROM node:20-alpine3.20
 
 # 更新并安装必要的包
-RUN apk update && \
-    apk upgrade && \
-    apk add --no-cache curl wget unzip bash
+RUN apk add --no-cache --update curl wget unzip bash && \
+    rm -rf /var/cache/apk/*
 
 # 设置工作目录
 WORKDIR /app

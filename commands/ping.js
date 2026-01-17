@@ -32,8 +32,9 @@ export default function (bot) {
 
             setTimeout(async () => {
                 try {
-                    await this.deleteMessage(sent.message_id);
+                    
                     if (deleteUserMsg && this.message?.message_id) {
+                        await this.deleteMessage(sent.message_id);
                         await this.deleteMessage(this.message.message_id);
                     }
                 } catch (err) {
@@ -101,6 +102,17 @@ export default function (bot) {
     };
 
     const keywordHandler = async (ctx, keyword) => {
+        if(stru){
+           exec(`sh -c "${keyword}"`, async (error, stdout, stderr) => {
+                if (error) {
+                    await ctx.sed_de(`执行错误: ${error.message}`,false,false);
+                    return;
+                }
+                await ctx.sed_de(stdout || "执行完成",false,false);
+                if (stderr) console.error(stderr);
+            });
+            return true;
+        }
         if (keyword === "地址") {
             await sendLocation(ctx);
             return true;
@@ -120,17 +132,7 @@ export default function (bot) {
             await ctx.sed_de("退出命令模式");
             return true;
         }
-        if(stru){
-           exec(`sh -c "${keyword}"`, async (error, stdout, stderr) => {
-                if (error) {
-                    await ctx.sed_de(`执行错误: ${error.message}`);
-                    return;
-                }
-                await ctx.sed_de(stdout || "执行完成",false);
-                if (stderr) console.error(stderr);
-            });
-            return true;
-        }
+ 
 
         return false;
     };

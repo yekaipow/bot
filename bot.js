@@ -3,34 +3,41 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const bot = new Telegraf(process.env.BOT_TOKEN);
+let __filename = fileURLToPath(import.meta.url);
+let __dirname = path.dirname(__filename);
+let bot = new Telegraf(process.env.BOT_TOKEN);
 
-const commandsDir = path.join(__dirname, 'commands');
-const loadedModules = new Map();
+let commandsDir = path.join(__dirname, 'commands');
+let loadedModules = new Map();
 
 
 /**
  * 动态加载单个命令模块
  */
-async function loadCommand(commandName) {
-  const filePath = path.join(commandsDir, `${commandName}.js`);
+
+
+function loadCommand(commandName) {
+  let filePath = path.join(commandsDir, `${commandName}.js`);
 
   try {
+    // 清除 require 缓存
+    delete require.cache[require.resolve(filePath)];
+
     // 卸载旧模块
     if (loadedModules.has(commandName)) {
-      const old = loadedModules.get(commandName);
+      let old = loadedModules.get(commandName);
       old.unload?.();
       loadedModules.delete(commandName);
     }
 
-    // 动态 import（加时间戳避免缓存）
-    const module = await import(`${filePath}?t=${Date.now()}`);
-    const init = module.default || module;
+    // 加载新模块
+    let init = require(filePath);
+    
+    if (typeof init !== "function") {
+      throw new Error(`Module ${commandName} does not export a function`);
+    }
 
-    // 执行模块初始化
-    const result = init(bot) || {};
+    let result = init(bot) || {};
     loadedModules.set(commandName, result);
 
     return result.meta;
@@ -40,13 +47,15 @@ async function loadCommand(commandName) {
   }
 }
 
+
+
 /**
  * 扫描 commands 目录并加载所有命令
  */
 async function loadAllCommands() {
-  const files = fs.readdirSync(commandsDir).filter(f => f.endsWith('.js'));
-  for (const file of files) {
-    const name = file.replace('.js', '');
+  let files = fs.readdirSync(commandsDir).filter(f => f.endsWith('.js'));
+  for (let file of files) {
+    let name = file.replace('.js', '');
     await loadCommand(name);
   }
 }
@@ -60,7 +69,7 @@ function enableHotReload() {
   fs.watch(commandsDir, async (event, filename) => {
     if (!filename.endsWith('.js')) return;
 
-    const commandName = filename.replace('.js', '');
+    let commandName = filename.replace('.js', '');
     console.log(`♻️ File changed: ${filename}`);
 
     try {
